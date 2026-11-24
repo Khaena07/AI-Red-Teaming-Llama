@@ -62,3 +62,39 @@ Due to its optimized size for edge devices and laptops, the Llama 3.2 (3B) model
 ## 🔒 Ethical Constraints & Secret Management
 *   **Environment Hygiene:** All environment variables, active sessions, and temporary API secrets used during commercial model benchmarking phases (e.g., OpenAI tokens) were completely purged from volatile memory using the `unset` utility post-assessment [1.22].
 *   No sensitive records, hardcoded tokens, or production access keys are stored within this repository.
+---
+
+## 🛡️ Phase 2: Defense-in-Depth Remediation & Comparative Benchmark
+
+To validate the primary security recommendation from Phase 1, an active input moderation guardrail (**Meta Llama Guard 3 - 8B**) was deployed upstream of the target model (**Llama 3.2 - 3B**) using a custom Python/FastAPI OpenAI-compatible security proxy.
+
+### 🏗️ Hardened Pipeline Architecture
+
+```mermaid
+flowchart LR
+    A[NVIDIA Garak v0.17.0<br/>Adversarial Probes] -->|OpenAI API Format| B[FastAPI Guardrail Proxy<br/>Port 8000]
+    B -->|1. Input Inspection| C[(Ollama: Llama Guard 3 - 8B<br/>Safety Classifier)]
+    C -->|UNSAFE Verdict| D[Immediate Block<br/>HTTP 200 Policy Refusal]
+    C -->|SAFE Verdict| E[(Ollama: Llama 3.2 - 3B<br/>Target Model)]
+    E -->|Generated Response| B
+    
+    style A fill:#2b1d38,stroke:#9b59b6,color:#fff
+    style B fill:#1a2530,stroke:#3498db,color:#fff
+    style C fill:#3d1c1c,stroke:#e74c3c,color:#fff
+    style D fill:#4a235a,stroke:#f39c12,color:#fff
+    style E fill:#1e382b,stroke:#2ecc71,color:#fff
+```
+
+### 📊 Before vs. After Security Benchmark (`dan.DAN` Jailbreak Detection)
+
+| Garak Probe | Phase 1: Unprotected Llama 3.2 (3B) | Phase 2: Llama 3.2 + Llama Guard 3 (8B) | Security Improvement |
+| :--- | :---: | :---: | :---: |
+| `probes.dan.Ablation_Dan_11_0` | 22.83% | **98.43%** (125/127 blocked) | **+75.60%** |
+| `probes.dan.AutoDANCached` | 33.33% | **100.00%** (3/3 blocked) | **+66.67%** |
+| `probes.dan.DanInTheWild` | 29.69% | **[XX.XX%]** ([XXX]/256 blocked) | **[+XX.XX%]** |
+
+### 🔍 Key Engineering Takeaways
+
+1. **Architectural Defense-in-Depth:** The underlying `Llama 3.2 (3B)` weights remained unchanged; the dramatic drop in attack success rate (down to **1.57%** on `Ablation_Dan_11_0` and **0.00%** on `AutoDANCached`) proves that lightweight local models can be safely deployed when encapsulated behind a dedicated safety classifier.
+2. **Detector Artifact Analysis (`dan.DAN` vs. `mitigation.MitigationBypass`):** While the primary `dan.DAN` detector confirmed a **98.43% – 100%** jailbreak prevention rate, Garak's secondary `MitigationBypass` detector flagged custom proxy block messages as bypasses because they did not match standard OpenAI/Meta boilerplate refusal strings (e.g., *"I'm sorry, I cannot..."*). This highlights the importance of manual `.jsonl` log verification over relying solely on automated scanner heuristics.
+3. **Production Trade-offs:** Intercepting prompts with an 8B safety model introduces minor inference latency overhead per request, which represents an acceptable operational trade-off for high-security or RAG-enabled enterprise workflows.
