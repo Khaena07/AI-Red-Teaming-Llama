@@ -10,6 +10,20 @@ The entire audit was executed within a closed-loop, local infrastructure to guar
 *   **Knowledge Base / RAG:** AnythingLLM (strictly used for secure, local document processing).
 *   **Environment Management:** Conda (Python 3.11 environment).
 *   **Audit Framework:** NVIDIA Garak v0.17.0 (LLM Vulnerability Scanner).
+```mermaid
+flowchart LR
+    A[NVIDIA Garak v0.17.0<br/>Adversarial Probes] -->|REST API| B[LiteLLM Gateway<br/>Proxy Layer]
+    B -->|Local Inference| C[(Ollama Container<br/>Llama 3.2 - 3B)]
+    C -->|Raw Output| D[JSONL Audit Logs<br/>Vulnerability Analysis]
+    E[AnythingLLM<br/>RAG & System Prompt] -.->|Context & Guardrails| C
+    
+    style A fill:#2b1d38,stroke:#9b59b6,color:#fff
+    style B fill:#1a2530,stroke:#3498db,color:#fff
+    style C fill:#1e382b,stroke:#2ecc71,color:#fff
+    style D fill:#382b1d,stroke:#e67e22,color:#fff
+    style E fill:#2c3e50,stroke:#95a5a6,color:#fff
+```
+
 
 ## 🚀 Attack Methodology
 The model was subjected to automated adversarial probing using the **Garak** framework over a **LiteLLM** gateway. The pipeline was forced sequentially using `--generations 1` to adapt to local hardware constraints.
